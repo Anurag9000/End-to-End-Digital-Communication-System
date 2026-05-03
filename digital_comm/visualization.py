@@ -33,9 +33,8 @@ def _plot_eye_segments(ax, waveform: np.ndarray, samples_per_bit: int, fs: float
     else:
         start = ideal_start
 
-    # X-axis: normalized symbol periods so eye is always centered at 0
-    # regardless of bit rate. Range = [-span_bits/2, +span_bits/2] T.
-    t_eye = np.linspace(-span_bits / 2.0, span_bits / 2.0, chunk)
+    # X-axis: exact normalized symbol periods mapping each discrete sample to T
+    t_eye = np.arange(chunk) / samples_per_bit - (span_bits / 2.0)
 
     count = 0
     alpha_val = max(0.03, min(0.20, 15.0 / max(traces, 1)))
