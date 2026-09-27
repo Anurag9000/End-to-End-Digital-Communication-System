@@ -22,7 +22,12 @@ def cupy_available() -> bool:
     if cp is None:
         return False
     try:
-        return cp.cuda.runtime.getDeviceCount() > 0
+        if cp.cuda.runtime.getDeviceCount() < 1:
+            return False
+        # Driver/device visibility does not guarantee usable CUDA allocations.
+        probe = cp.empty((1,), dtype=cp.uint8)
+        del probe
+        return True
     except Exception:
         return False
 

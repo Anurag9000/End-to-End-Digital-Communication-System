@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import unittest
+from unittest import mock
+from types import SimpleNamespace
+
+import digital_comm.backend as backend_module
 
 import numpy as np
 
@@ -37,6 +41,18 @@ class DigitalCommPipelineTests(unittest.TestCase):
         self.assertEqual(len(samp_sweep.sample_fs), 3)
         self.assertEqual(len(samp_sweep.sqnr_db), 3)
         self.assertTrue(np.all(samp_sweep.sample_counts > 0))
+
+    def test_auto_falls_back_when_cupy_device_cannot_allocate(self):
+        fake = SimpleNamespace(
+            cuda=SimpleNamespace(runtime=SimpleNamespace(getDeviceCount=lambda: 1)),
+            empty=mock.Mock(side_effect=RuntimeError("CUDA driver unavailable")),
+            uint8=object(),
+        )
+        with mock.patch.object(backend_module, "cp", fake):
+            self.assertFalse(cupy_available())
+            self.assertEqual(resolve_backend("auto").name, "numpy")
+            with self.assertRaises(RuntimeError):
+                resolve_backend("cupy")
 
     def test_backend_auto_selection_respects_cupy_availability(self):
         backend = resolve_backend("auto")
