@@ -54,6 +54,30 @@ class DigitalCommPipelineTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 resolve_backend("cupy")
 
+    def test_central_cpu_admission_disables_cupy_even_if_installed(self):
+        fake = SimpleNamespace(
+            cuda=SimpleNamespace(runtime=SimpleNamespace(getDeviceCount=lambda: 1)),
+            empty=mock.Mock(), uint8=object(),
+        )
+        with mock.patch.dict("os.environ", {"OPF_ADP_DISABLE_GPU_ACCELERATORS": "1",
+                                            "CUDA_VISIBLE_DEVICES": "0"}), \
+             mock.patch.object(backend_module, "cp", fake):
+            self.assertFalse(cupy_available())
+            fake.empty.assert_not_called()
+            self.assertEqual(resolve_backend("auto").name, "numpy")
+            with self.assertRaises(RuntimeError):
+                resolve_backend("cupy")
+
+    def test_empty_cuda_visibility_masks_accelerator(self):
+        with mock.patch.dict("os.environ", {"CUDA_VISIBLE_DEVICES": "",
+                                            "OPF_ADP_DISABLE_GPU_ACCELERATORS": "0"}):
+            self.assertFalse(cupy_available())
+            self.assertEqual(resolve_backend("auto").name, "numpy")
+
+    def test_unknown_backend_is_rejected(self):
+        with self.assertRaises(ValueError):
+            resolve_backend("gpu")
+
     def test_backend_auto_selection_respects_cupy_availability(self):
         backend = resolve_backend("auto")
         if cupy_available():

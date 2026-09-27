@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 from typing import Any
 
 import numpy as np
@@ -19,6 +20,9 @@ class ArrayBackend:
 
 
 def cupy_available() -> bool:
+    if (os.environ.get("OPF_ADP_DISABLE_GPU_ACCELERATORS", "").strip() == "1"
+            or os.environ.get("CUDA_VISIBLE_DEVICES") in {"", "-1"}):
+        return False
     if cp is None:
         return False
     try:
@@ -34,6 +38,8 @@ def cupy_available() -> bool:
 
 def resolve_backend(mode: str = "auto") -> ArrayBackend:
     mode = (mode or "auto").lower()
+    if mode not in {"auto", "numpy", "cupy"}:
+        raise ValueError(f"unsupported compute backend: {mode!r}")
     if mode == "numpy":
         return ArrayBackend("numpy", np, False)
     if mode == "cupy":
