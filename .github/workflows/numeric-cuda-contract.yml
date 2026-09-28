@@ -1,0 +1,42 @@
+name: Digital simulation CUDA admission contract
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'digital_comm/**'
+      - 'tests/**'
+      - 'scripts/verify_parameter_grid.py'
+      - 'requirements*.txt'
+      - '.github/workflows/numeric-cuda-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cpu-simulation-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CPU_ONLY: '1'
+      TRAINING_CONTROL_BACKEND: cpu
+      CUDA_VISIBLE_DEVICES: '-1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install CPU-only numerical test dependencies
+        run: python -m pip install --disable-pip-version-check -q pytest numpy
+      - name: Compile shared backend and regression modules
+        run: |
+          python -m py_compile \
+            digital_comm/backend.py \
+            tests/test_backend_admission.py \
+            tests/test_pipeline.py \
+            scripts/verify_parameter_grid.py
+      - name: Execute CPU admission and end-to-end pipeline tests
+        run: python -m pytest -q -o addopts='' tests/test_backend_admission.py tests/test_pipeline.py
+      - name: Verify numerical parameter grid under CPU admission
+        run: python scripts/verify_parameter_grid.py --seed 7
