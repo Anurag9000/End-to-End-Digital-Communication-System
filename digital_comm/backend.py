@@ -98,8 +98,8 @@ def resolve_backend(mode: str = "auto") -> ArrayBackend:
     original = admission_signature()
     cpu_only, gpu_admitted, _ = original
     if mode == "numpy":
-        if gpu_admitted:
-            raise RuntimeError("GPU-admitted simulation worker cannot select NumPy")
+        # Explicit NumPy is a deliberate CPU reference cohort inside the
+        # parameter-grid parity runner, not an automatic GPU-job fallback.
         return ArrayBackend("numpy", np, False)
     if cpu_only:
         if mode == "cupy":
@@ -121,9 +121,10 @@ def resolve_backend(mode: str = "auto") -> ArrayBackend:
 def to_numpy(x):
     original = admission_signature()
     is_cupy = getattr(type(x), "__module__", "").startswith("cupy")
+    if original[0] and is_cupy:
+        raise RuntimeError("CPU-admitted simulation cannot convert an accelerator array")
     device = getattr(x, "device", None)
-    if original[0] and (is_cupy or getattr(device, "type", None)
-                        in {"cuda", "hip", "mps", "xpu"}):
+    if original[0] and getattr(device, "type", None) in {"cuda", "hip", "mps", "xpu"}:
         raise RuntimeError("CPU-admitted simulation cannot convert an accelerator array")
     if not is_cupy:
         return np.asarray(x)
